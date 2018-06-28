@@ -4,9 +4,9 @@
 . bashme/bashme
 
 # Basic settings
-loglevel=$LL_trace
+loglevel=$LL_INFO
 log2file=1
-log2std=
+log2std=1
 
 # Setup
 PROGRAM_NAME="${BOLD}LFS Setup${RESET}"
@@ -64,6 +64,7 @@ tput clear
 function update_winparams() {
   declare -i COLS=$(tput cols)
   declare -i LINES=$(tput lines)
+  debug "Updated \$COLS=$COLS and \$LINES=$LINES."
 }
 function print_title() {
   left=5
@@ -82,16 +83,16 @@ function list_options() {
     ((i++))
     tput cup $top $left
     echo "$i) $option"
-    trace "Printed option: '$option' at ($top, $left)"
+    trace "Printed option number $i: '$option' at ($top, $left)"
     ((top++))
   done
 }
 function read_answer() {
-  ((top++))
   tput cup $top $left
   printf "$1"
   read $2
-  debug "Read answer: '$(eval "printf '$2'")'"
+  ((top++))
+  debug "Read answer: '$(eval 'echo \$$2')'"
 }
 # Start
 
@@ -100,11 +101,56 @@ declare -i left
 declare -i top
 print_title "LFS setup"
 list_options "Download mandatory packages"
-loglevel=$LL_DEBUG
+((top++))
 read_answer "Enter option: " answer
+trace "$LFS"
 case "$answer" in
   1) # Download packages
-
+    # if [[ "$EUID" -ne 0 ]]; then
+    #   tput rmcup
+    #   unlock
+    #   fatal "This script has to be run as root."
+    #   exit
+    # fi
+    if [[ -z "$LFS" ]]; then
+      info "LFS variable not set."
+      read_answer "Please specify the path for the LFS-variable: " LFS
+    fi
+    /bin/mkdir -p $LFS/sources
+    if ! check_retval $?; then
+      tput rmcup
+      unlock
+      error "Couldn't create LFS directory '$LFS/sources'."
+      exit
+    fi
+    /bin/chmod a+wt $LFS/sources
+    if ! check_retval $?; then
+      tput rmcup
+      unlock
+      error "Couldn't make LFS directory writable and sticky."
+      exit
+    fi
+    info 'Downloading packages and patches.'
+    # wget --input-file=wget-list --continue --directory-prefix=$LFS/sources
+    if ! check_retval $?; then
+      error "Couldn't download all the packages."
+      read
+      tput rmcup
+      unlock
+      exit
+    fi
+    cp md5sums "$LFS/sources"
+    pushd "$LFS/sources"
+    md5sum -c md5sums
+    if ! check_retval $?; then
+      error "Couldn't verify all the packages."
+      read
+      tput rmcup
+      unlock
+      exit
+    fi
+    read
+    popd
 esac
 read
 # End
