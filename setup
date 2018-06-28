@@ -1,0 +1,112 @@
+#!/bin/bash -
+
+# Source the script
+. bashme/bashme
+
+# Basic settings
+loglevel=$LL_trace
+log2file=1
+log2std=
+
+# Setup
+PROGRAM_NAME="${BOLD}LFS Setup${RESET}"
+VERSION="${FG_GREEN}v0.1${RESET}"
+YEAR=2018
+FULL_NAME="Raphael Emberger"
+LICENCE=$(cat LICENSE)
+EXPLANATION='A setup for my LFS.'
+USAGE=()
+define_opt '_help' '-h' '--help'    '' 'Display this help text.'
+define_opt '_ver'  '-v' '--version' '' 'Display the VERSION.'
+DESCRIPTION=''
+
+# Parse arguments
+parse_args "$@"
+
+# Process options
+[[ -n "$_help" ]] && print_usage && exit
+[[ -n "$_ver" ]] && print_version && exit
+
+
+# Setup traps
+traps+=(
+  QUIT
+  WINCH
+)
+sig_err() {
+  error "An error occurred."
+  unlock
+  tput rmcup
+  exit;
+}
+sig_int() {
+  error "I got interrupted."
+  unlock
+  tput rmcup
+  exit;
+}
+sig_quit() {
+  error "I got killed."
+  unlock
+  tput rmcup
+  exit;
+}
+sig_winch() {
+  debug "Resized terminal."
+  update_winparams
+  draw_ui
+}
+trap_signals
+
+#lock
+tput smcup
+tput clear
+function update_winparams() {
+  declare -i COLS=$(tput cols)
+  declare -i LINES=$(tput lines)
+}
+function print_title() {
+  left=5
+  top=2
+  local title="$1"
+  tput cup $top $left
+  echo "${FG_YELLOW}${BOLD}${UNDERLINE}$1${RESET}"
+  trace "Printed title: '$1' at ($top, $left)"
+  top=$((top + 2))
+  tput cup $top $left
+}
+function list_options() {
+  local -i i
+  local option
+  for option in "$@"; do
+    ((i++))
+    tput cup $top $left
+    echo "$i) $option"
+    trace "Printed option: '$option' at ($top, $left)"
+    ((top++))
+  done
+}
+function read_answer() {
+  ((top++))
+  tput cup $top $left
+  printf "$1"
+  read $2
+  debug "Read answer: '$(eval "printf '$2'")'"
+}
+# Start
+
+update_winparams
+declare -i left
+declare -i top
+print_title "LFS setup"
+list_options "Download mandatory packages"
+loglevel=$LL_DEBUG
+read_answer "Enter option: " answer
+case "$answer" in
+  1) # Download packages
+
+esac
+read
+# End
+tput rmcup
+unlock
